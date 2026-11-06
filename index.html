@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>英语听力噪音模拟器 · en-listen-sim</title>
+<style>
+  :root {
+    --bg: #eef1f8;
+    --card: #ffffff;
+    --ink: #1c2333;
+    --muted: #6b7280;
+    --accent: #4f6ef7;
+    --accent-dark: #3d56d4;
+    --accent-soft: #eef1fe;
+    --border: #e5e9f2;
+    --danger: #d64545;
+    --ok: #2e9e5b;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: linear-gradient(160deg, #e8edfb 0%, #f6f8fd 45%, #eef1f8 100%);
+    min-height: 100vh;
+    color: var(--ink);
+    padding: 36px 16px 72px;
+  }
+  .app { max-width: 860px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 30px; }
+  header h1 { font-size: 28px; font-weight: 700; letter-spacing: .5px; }
+  header h1 .accent { color: var(--accent); }
+  header p { color: var(--muted); margin-top: 8px; font-size: 14px; line-height: 1.6; }
+  header p strong { color: var(--accent-dark); }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 30px rgba(30, 41, 99, .06);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card h2 {
+    font-size: 15px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card h2 .step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .hidden { display: none !important; }
+
+  /* 上传区 */
+  .record-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .record-bar .record-time { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--accent); min-width: 44px; }
+  .record-bar .record-hint { color: var(--muted); font-size: 13px; }
+  .record-bar #btnRecord.recording { background: #e5484d; animation: recpulse 1.2s infinite; }
+  @keyframes recpulse { 0%,100% { box-shadow: 0 0 0 0 rgba(229,72,77,.45); } 50% { box-shadow: 0 0 0 8px rgba(229,72,77,0); } }
+
+  .dropzone {
+    border: 2px dashed #c3cbe0;
+    border-radius: 12px;
+    padding: 44px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .15s ease;
+    background: #fafbfe;
+  }
+  .dropzone:hover, .dropzone.dragover { border-color: var(--accent); background: var(--accent-soft); }
+  .dropzone .icon { width: 46px; height: 46px; color: var(--accent); margin: 0 auto 14px; display: block; }
+  .dropzone .main { font-size: 15px; font-weight: 600; }
+  .dropzone .sub { color: var(--muted); font-size: 13px; margin-top: 6px; }
+
+  .file-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .file-bar .f-icon {
+    width: 46px; height: 46px; flex: none;
+    border-radius: 12px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .file-bar .f-icon svg { width: 24px; height: 24px; }
+  .file-bar .f-info { flex: 1; min-width: 180px; }
+  .file-bar .f-name { font-weight: 600; font-size: 14.5px; word-break: break-all; }
+  .file-bar .f-meta { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+
+  /* 控件 */
+  .field { margin-bottom: 18px; }
+  .field-label { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 10px; }
+  .segmented { display: flex; gap: 8px; flex-wrap: wrap; }
+  .segmented button {
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 999px;
+    padding: 8px 18px;
+    font-size: 13.5px;
+    cursor: pointer;
+    color: var(--ink);
+    font-family: inherit;
+    font-weight: 500;
+    transition: all .12s ease;
+  }
+  .segmented button:hover { border-color: var(--accent); color: var(--accent); }
+  .segmented button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .slider-row { display: flex; align-items: center; gap: 16px; }
+  input[type=range] { flex: 1; accent-color: var(--accent); cursor: pointer; }
+  .snr-num {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    min-width: 66px;
+    text-align: right;
+    color: var(--accent-dark);
+    font-size: 14px;
+  }
+  .hint { font-size: 12.5px; color: var(--muted); margin-top: 10px; line-height: 1.7; }
+  .hint strong { color: var(--ink); font-weight: 600; }
+
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+  .btn {
+    border: none;
+    border-radius: 10px;
+    padding: 11px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: inherit;
+    text-decoration: none;
+    transition: all .12s ease;
+  }
+  .btn svg { width: 16px; height: 16px; display: block; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-primary:disabled { opacity: .55; cursor: default; }
+  .btn-primary:disabled:hover { background: var(--accent); }
+  .btn-ghost { background: #fff; color: var(--ink); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-ghost.playing { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-dark); }
+
+  .status { font-size: 13px; color: var(--muted); margin-top: 14px; min-height: 18px; }
+  .status.error { color: var(--danger); }
+  .status.ok { color: var(--ok); }
+
+  /* 结果区 */
+  #waveform {
+    width: 100%;
+    height: 140px;
+    display: block;
+    background: #f6f8fd;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .result-name { font-size: 13.5px; font-weight: 600; margin-top: 14px; word-break: break-all; }
+  .result-meta { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+  audio { width: 100%; margin-top: 16px; }
+  .note { font-size: 12px; color: var(--muted); margin-top: 12px; line-height: 1.7; }
+
+  footer { text-align: center; color: #9aa3b5; font-size: 12px; margin-top: 28px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>英语听力<span class="accent">噪音模拟器</span></h1>
+    <p>重点功能：<strong>喇叭滋滋声</strong>——噼里啪啦的杂音与原声融为一体，原声越响噼啪越明显，模拟喇叭不好；<br>另有白噪声、粉红噪声等环境噪音可选，支持在线试听与下载成品。</p>
+  </header>
+
+  <section class="card">
+    <h2><span class="step">1</span>上传音频</h2>
+    <div class="record-bar" id="recordBar">
+      <button class="btn btn-primary" id="btnRecord" type="button"></button>
+      <span class="record-time" id="recordTime">0:00</span>
+      <span class="record-hint" id="recordHint">录制完成后自动转为音频源，可直接加噪</span>
+    </div>
+    <div class="dropzone" id="dropzone">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 16.2A5 5 0 0 1 5.6 6.6a6 6 0 0 1 11.6 1.6 4.5 4.5 0 0 1 .3 8.9"/>
+        <path d="M12 12v8"/>
+        <path d="m8.5 15.5 3.5 3.5 3.5-3.5"/>
+      </svg>
+      <div class="main">点击选择或拖拽 MP3 文件到此处</div>
+      <div class="sub">支持 mp3 / wav / m4a / ogg 等浏览器可解码的音频格式</div>
+    </div>
+    <div class="file-bar hidden" id="fileBar">
+      <div class="f-icon">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/>
+        </svg>
+      </div>
+      <div class="f-info">
+        <div class="f-name" id="fileName"></div>
+        <div class="f-meta" id="fileMeta"></div>
+      </div>
+      <button class="btn btn-ghost" id="btnChangeFile" type="button">更换文件</button>
+    </div>
+    <input type="file" id="fileInput" accept="audio/*,.mp3" class="hidden">
+  </section>
+
+  <section class="card hidden" id="controls">
+    <h2><span class="step">2</span>噪音设置</h2>
+
+    <div class="field">
+      <div class="field-label">噪音类型</div>
+      <div class="segmented" id="noiseTypes">
+        <button type="button" data-type="speaker" class="active">喇叭滋滋声</button>
+        <button type="button" data-type="white">白噪声</button>
+        <button type="button" data-type="pink">粉红噪声</button>
+        <button type="button" data-type="brown">布朗噪声</button>
+        <button type="button" data-type="babble">嘈杂人声</button>
+      </div>
+      <p class="hint" id="noiseHint"></p>
+    </div>
+
+    <div class="field">
+      <div class="field-label" id="sliderLabel">滋滋强度（噼啪杂音混入原声的深度）</div>
+      <div class="slider-row">
+        <input type="range" id="snr" min="0" max="100" step="1" value="40">
+        <span class="snr-num" id="snrValue">40%</span>
+      </div>
+      <p class="hint">当前：<strong id="snrDesc">滋滋明显</strong><span id="sliderHintSuffix"> · 杂音与原声融为一体：原声越响，噼里啪啦越明显，安静处自然无声</span></p>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" id="btnMix" type="button"></button>
+      <button class="btn btn-ghost" id="btnOriginal" type="button"></button>
+      <button class="btn btn-primary" id="btnGenerate" type="button"></button>
+    </div>
+    <p class="status" id="status"></p>
+  </section>
+
+  <section class="card hidden" id="result">
+    <h2><span class="step">3</span>处理结果</h2>
+    <canvas id="waveform"></canvas>
+    <p class="result-name" id="resultName"></p>
+    <p class="result-meta" id="resultMeta"></p>
+    <audio id="audioPlayer" controls preload="metadata"></audio>
+    <div class="actions">
+      <a class="btn btn-primary" id="btnDownload" download>下载成品</a>
+    </div>
+    <p class="note">提示：网页直接导出为 WAV 无损格式（兼容性最好）。全程在浏览器本地处理，音频不会上传到任何服务器。</p>
+  </section>
+
+  <footer>en-listen-sim · 本地运行 · 无需联网</footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var els = {
+    dropzone: $('dropzone'),
+    fileInput: $('fileInput'),
+    fileBar: $('fileBar'),
+    fileName: $('fileName'),
+    fileMeta: $('fileMeta'),
+    btnChangeFile: $('btnChangeFile'),
+    btnRecord: $('btnRecord'),
+    recordTime: $('recordTime'),
+    recordHint: $('recordHint'),
+    controls: $('controls'),
+    noiseTypes: $('noiseTypes'),
+    noiseHint: $('noiseHint'),
+    sliderLabel: $('sliderLabel'),
+    snr: $('snr'),
+    snrValue: $('snrValue'),
+    snrDesc: $('snrDesc'),
+    sliderHintSuffix: $('sliderHintSuffix'),
+    btnMix: $('btnMix'),
+    btnOriginal: $('btnOriginal'),
+    btnGenerate: $('btnGenerate'),
+    status: $('status'),
+    result: $('result'),
+    waveform: $('waveform'),
+    resultName: $('resultName'),
+    resultMeta: $('resultMeta'),
+    audioPlayer: $('audioPlayer'),
+    btnDownload: $('btnDownload'),
+  };
+
+  var NOISE_INFO = {
+    speaker: { label: '喇叭滋滋声', desc: 'v8：原声经 1500Hz 双重低通变得浑浊；噼啪杂音乘性混入且强度每 0.5 秒随机起伏；每隔 10–20 秒（仅当原声正在播放时）噪音用约 1.5 秒渐渐增响、保持 0.5–1.5 秒后 0.5 秒内消退，期间原声被完全盖住，模拟严重损坏的喇叭。' },
+    white:  { label: '白噪声',   desc: '频谱均匀的"嘶嘶"声，类似收音机底噪或电视雪花声。' },
+    pink:   { label: '粉红噪声', desc: '比白噪声柔和，类似风扇、空调或淅沥雨声，最接近真实环境底噪。' },
+    brown:  { label: '布朗噪声', desc: '低沉的轰鸣声，类似远处车流、地铁或海浪声。' },
+    babble: { label: '嘈杂人声', desc: '模拟考场外的嘈杂说话声——能听到"嗡嗡"的人声但听不清内容，训练抗干扰能力。' }
+  };
+
+  var state = {
+    file: null,
+    fileUrl: null,
+    audioBuffer: null,
+    noiseBuffer: null,
+    noiseType: 'speaker',
+    snr: 5,
+    intensity: 40, speakerDrift: null,
+    signalRms: 0,
+    ctx: null,
+    previewKind: null,
+    previewToken: 0,
+    mixCache: null,
+    resultUrl: null,
+    autoPlay: false,
+    recorder: null,
+    stream: null,
+    recStart: 0,
+    recTimer: null,
+  };
+
+  var ICONS = {
+    play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.14v13.72c0 .8.87 1.3 1.56.88l10.6-6.86a1.05 1.05 0 0 0 0-1.76L9.56 4.26A1.04 1.04 0 0 0 8 5.14z"/></svg>',
+    stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+    download: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a1 1 0 0 1 1 1v9.59l3.3-3.3a1 1 0 1 1 1.4 1.42l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 1 1 1.4-1.42l3.3 3.3V4a1 1 0 0 1 1-1zM5 19a1 1 0 1 0 0 2h14a1 1 0 1 0 0-2H5z"/></svg>',
+    mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+  };
+
+  function showStatus(text, type) {
+    els.status.textContent = text || '';
+    els.status.className = 'status' + (type === 'error' ? ' error' : type === 'ok' ? ' ok' : '');
+  }
+
+  function getCtx() {
+    if (!state.ctx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      state.ctx = new AC();
+    }
+    return state.ctx;
+  }
+
+  function formatDuration(sec) {
+    var m = Math.floor(sec / 60);
+    var s = Math.round(sec % 60);
+    if (s === 60) { m += 1; s = 0; }
+    return m + ':' + String(s).padStart(2, '0');
+  }
+
+  function channelLabel(n) {
+    return n === 1 ? '单声道' : n === 2 ? '立体声' : n + ' 声道';
+  }
+
+  /* ---------- 噪音生成 ---------- */
+
+  function makeWhite(len) {
+    var out = new Float32Array(len);
+    for (var i = 0; i < len; i++) out[i] = Math.random() * 2 - 1;
+    return out;
+  }
+
+  function makePink(len) {
+    var out = new Float32Array(len);
+    var b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    for (var i = 0; i < len; i++) {
+      var w = Math.random() * 2 - 1;
+      b0 = 0.99886 * b0 + w * 0.0555179;
+      b1 = 0.99332 * b1 + w * 0.0750759;
+      b2 = 0.96900 * b2 + w * 0.1538520;
+      b3 = 0.86650 * b3 + w * 0.3104856;
+      b4 = 0.55000 * b4 + w * 0.5329522;
+      b5 = -0.7616 * b5 - w * 0.0168980;
+      out[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11;
+      b6 = w * 0.115926;
+    }
+    return out;
+  }
+
+  function makeBrown(len) {
+    var out = new Float32Array(len);
+    var last = 0;
+    for (var i = 0; i < len; i++) {
+      var w = Math.random() * 2 - 1;
+      last = (last + 0.02 * w) / 1.02;
+      out[i] = last * 3.5;
+    }
+    return out;
+  }
+
+  function makeBabble(len, sr) {
+    var out = new Float32Array(len);
+    var b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    var lp1 = 0;
+    var hp2 = 0, prev2 = 0, lp2 = 0;
+    var aLp1 = 1 - Math.exp(-2 * Math.PI * 650 / sr);
+    var aHp2 = Math.exp(-2 * Math.PI * 800 / sr);
+    var aLp2 = 1 - Math.exp(-2 * Math.PI * 2600 / sr);
+    var env = 0.6, target = 0.6;
+    var envStep = Math.max(1, Math.round(sr * 0.12));
+    for (var i = 0; i < len; i++) {
+      var w = Math.random() * 2 - 1;
+      b0 = 0.99886 * b0 + w * 0.0555179;
+      b1 = 0.99332 * b1 + w * 0.0750759;
+      b2 = 0.96900 * b2 + w * 0.1538520;
+      b3 = 0.86650 * b3 + w * 0.3104856;
+      b4 = 0.55000 * b4 + w * 0.5329522;
+      b5 = -0.7616 * b5 - w * 0.0168980;
+      var p = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11;
+      b6 = w * 0.115926;
+      lp1 += aLp1 * (p - lp1);
+      hp2 = aHp2 * (hp2 + p - prev2);
+      prev2 = p;
+      lp2 += aLp2 * (hp2 - lp2);
+      if (i % envStep === 0) target = 0.35 + Math.random() * 0.65;
+      env += (target - env) * 0.03;
+      out[i] = (0.6 * lp1 + 1.1 * lp2) * env * 2.4;
+    }
+    return out;
+  }
+
+  function normalizeRms(data) {
+    var sum = 0;
+    for (var i = 0; i < data.length; i++) { var v = data[i]; sum += v * v; }
+    var rms = Math.sqrt(sum / data.length);
+    if (rms > 0) {
+      var k = 1 / rms;
+      for (var j = 0; j < data.length; j++) data[j] *= k;
+    }
+    return data;
+  }
+
+  function makeSpeakerNoise(len, sr) {
+    var out = new Float32Array(len);
+    var decay1 = Math.exp(-1 / (0.0022 * sr));
+    var decay2 = Math.exp(-1 / (0.0006 * sr));
+    var c1 = 0, c2 = 0;
+    for (var i = 0; i < len; i++) {
+      c1 *= decay1;
+      c2 *= decay2;
+      var r = Math.random();
+      if (r < 0.005) {
+        var a = 0.5 + Math.random() * 0.5;
+        if (Math.random() < 0.5) a = -a;
+        if (Math.random() < 0.15) a *= 1.5;
+        c1 += a;
+      } else if (r < 0.009) {
+        c2 += (Math.random() < 0.5 ? 1 : -1) * (0.3 + Math.random() * 0.5);
+      }
+      var v = (c1 * 0.9 + c2 * 0.7) / 0.32;
+      out[i] = v > 1 ? 1 : v < -1 ? -1 : v;
+    }
+
+    var drift = new Float32Array(len);
+    var dEnv = 0.5, dTarget = 0.5;
+    var dStep = Math.max(1, Math.round(sr * 0.5));
+    for (var k = 0; k < len; k++) {
+      if (k % dStep === 0) dTarget = Math.random();
+      dEnv += (dTarget - dEnv) * 0.0002;
+      drift[k] = 0.6 + dEnv * 1.6;
+    }
+
+    return { data: out, drift: drift };
+  }
+
+  function buildNoiseBuffer() {
+    var buf = state.audioBuffer;
+    var len = buf.length, sr = buf.sampleRate, ch = buf.numberOfChannels;
+    var buffer = new AudioBuffer({ length: len, sampleRate: sr, numberOfChannels: ch });
+    for (var c = 0; c < ch; c++) {
+      var data;
+      switch (state.noiseType) {
+        case 'white': data = makeWhite(len); break;
+        case 'brown': data = makeBrown(len); break;
+        case 'babble': data = makeBabble(len, sr); break;
+        case 'speaker':
+          var res = makeSpeakerNoise(len, sr);
+          data = res.data;
+          if (c === 0) state.speakerDrift = res.drift;
+          break;
+        default: data = makePink(len);
+      }
+      if (state.noiseType === 'speaker') buffer.copyToChannel(data, c);
+      else buffer.copyToChannel(normalizeRms(data), c);
+    }
+    return buffer;
+  }
+
+  /* ---------- 电平计算 ---------- */
+
+  function rmsOf(buffer) {
+    var n = buffer.numberOfChannels;
+    var chans = [];
+    for (var c = 0; c < n; c++) chans.push(buffer.getChannelData(c));
+    var sum = 0;
+    for (var i = 0; i < buffer.length; i++) {
+      var s = 0;
+      for (var k = 0; k < n; k++) s += chans[k][i];
+      s /= n;
+      sum += s * s;
+    }
+    return Math.sqrt(sum / buffer.length);
+  }
+
+  function currentNoiseGain() {
+    if (!state.audioBuffer || !state.noiseBuffer) return 0;
+    return state.signalRms * Math.pow(10, -state.snr / 20);
+  }
+
+  /* ---------- 文件加载 ---------- */
+
+  function resetResult() {
+    if (state.resultUrl) {
+      URL.revokeObjectURL(state.resultUrl);
+      state.resultUrl = null;
+    }
+    els.audioPlayer.removeAttribute('src');
+    els.audioPlayer.load();
+    els.btnDownload.removeAttribute('href');
+    els.result.classList.add('hidden');
+  }
+
+  async function loadAudioBlob(blob, name) {
+    showStatus('正在解码音频…');
+    try {
+      var arrayBuf = await blob.arrayBuffer();
+      var audioBuffer = await getCtx().decodeAudioData(arrayBuf);
+    } catch (e) {
+      showStatus('解码失败：该文件可能已损坏或不是有效的音频文件', 'error');
+      return;
+    }
+
+    stopPreview();
+    resetResult();
+    clearPreviewCaches();
+    if (state.fileUrl) URL.revokeObjectURL(state.fileUrl);
+    state.fileUrl = URL.createObjectURL(blob);
+
+    state.file = { name: name, size: blob.size };
+    state.audioBuffer = audioBuffer;
+    state.signalRms = rmsOf(audioBuffer);
+    state.noiseBuffer = buildNoiseBuffer();
+
+    els.fileName.textContent = name;
+    els.fileMeta.textContent =
+      '时长 ' + formatDuration(audioBuffer.duration) +
+      ' · ' + audioBuffer.sampleRate + ' Hz' +
+      ' · ' + channelLabel(audioBuffer.numberOfChannels) +
+      ' · ' + (blob.size / 1024 / 1024).toFixed(2) + ' MB';
+    els.dropzone.classList.add('hidden');
+    els.fileBar.classList.remove('hidden');
+    els.controls.classList.remove('hidden');
+    showStatus('加载成功，可调整参数并试听效果', 'ok');
+  }
+
+  async function loadFile(file) {
+    if (!file) return;
+    var isAudio = file.type.indexOf('audio') === 0 || /\.(mp3|wav|m4a|aac|ogg|oga|flac|webm)$/i.test(file.name);
+    if (!isAudio) {
+      showStatus('请选择音频文件（如 MP3）', 'error');
+      return;
+    }
+    await loadAudioBlob(file, file.name);
+  }
+
+  /* ---------- 录音 ---------- */
+
+  function updateRecordTime() {
+    var s = Math.floor((Date.now() - state.recStart) / 1000);
+    els.recordTime.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  }
+
+  function resetRecordUI() {
+    if (state.recTimer) { clearInterval(state.recTimer); state.recTimer = null; }
+    if (state.stream) {
+      state.stream.getTracks().forEach(function (t) { t.stop(); });
+      state.stream = null;
+    }
+    state.recorder = null;
+    els.btnRecord.classList.remove('recording');
+    els.btnRecord.innerHTML = ICONS.mic + '<span>开始录音</span>';
+    els.recordTime.textContent = '0:00';
+  }
+
+  async function startRecord() {
+    if (state.recorder) return;
+    var stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (e) {
+      showStatus('无法使用麦克风（' + (e && e.name ? e.name : '未知错误') + '）。请允许麦克风权限后重试，或改用上传文件', 'error');
+      return;
+    }
+    state.stream = stream;
+    var mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
+      .filter(function (m) { return window.MediaRecorder && MediaRecorder.isTypeSupported(m); })[0] || '';
+    var rec;
+    try {
+      rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+    } catch (e) {
+      rec = new MediaRecorder(stream);
+    }
+    var chunks = [];
+    rec.ondataavailable = function (e) {
+      if (e.data && e.data.size) chunks.push(e.data);
+    };
+    rec.onstop = function () {
+      var type = rec.mimeType || mime || 'audio/webm';
+      var blob = new Blob(chunks, { type: type });
+      resetRecordUI();
+      if (!blob.size) {
+        showStatus('录音内容为空，请重试', 'error');
+        return;
+      }
+      var ext = type.indexOf('mp4') >= 0 ? 'm4a' : 'webm';
+      var name = '录音_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.' + ext;
+      loadAudioBlob(blob, name);
+    };
+    state.recorder = rec;
+    state.recStart = Date.now();
+    rec.start(1000);
+    state.recTimer = setInterval(updateRecordTime, 250);
+    els.btnRecord.classList.add('recording');
+    els.btnRecord.innerHTML = ICONS.stop + '<span>停止录音</span>';
+    showStatus('正在录音…点击「停止录音」完成并载入', 'ok');
+  }
+
+  function stopRecord() {
+    if (state.recorder && state.recorder.state !== 'inactive') state.recorder.stop();
+  }
+
+  /* ---------- 试听 ---------- */
+
+  function stopPreview() {
+    state.previewToken++;
+    state.previewKind = null;
+    els.audioPlayer.pause();
+    updateButtons();
+  }
+
+  function clearPreviewCaches() {
+    if (state.mixCache) {
+      URL.revokeObjectURL(state.mixCache.url);
+      state.mixCache = null;
+    }
+  }
+
+  async function playPreview(kind) {
+    if (!state.audioBuffer) return;
+    if (state.previewKind === kind) { stopPreview(); return; }
+    stopPreview();
+    var token = state.previewToken;
+
+    var url;
+    if (kind === 'original') {
+      url = state.fileUrl;
+      if (!url) return;
+    } else {
+      var key = state.noiseType + ':' + (state.noiseType === 'speaker' ? state.intensity : state.snr);
+      if (!state.mixCache || state.mixCache.key !== key) {
+        showStatus('正在合成试听音频…');
+        await new Promise(function (r) { setTimeout(r, 30); });
+        if (token !== state.previewToken) return;
+        var rendered;
+        try {
+          rendered = await renderMixBuffer();
+        } catch (e) {
+          showStatus('试听合成失败：' + (e && e.message ? e.message : '未知错误'), 'error');
+          return;
+        }
+        if (token !== state.previewToken) return;
+        if (state.mixCache) URL.revokeObjectURL(state.mixCache.url);
+        state.mixCache = { key: key, url: URL.createObjectURL(encodeWav(rendered)) };
+      }
+      url = state.mixCache.url;
+    }
+
+    if (token !== state.previewToken) return;
+    els.audioPlayer.src = url;
+    state.previewKind = kind;
+    updateButtons();
+    state.autoPlay = true;
+    var p = els.audioPlayer.play();
+    if (p && p.catch) {
+      p.catch(function () {
+        state.autoPlay = false;
+        els.result.classList.remove('hidden');
+        showStatus('试听已就绪，请点击下方播放器播放', 'ok');
+      });
+    }
+    showStatus(kind === 'original' ? '正在试听原声' : '正在试听混合效果');
+  }
+
+  function updateButtons() {
+    var mixPlaying = state.previewKind === 'mix';
+    els.btnMix.innerHTML = (mixPlaying ? ICONS.stop : ICONS.play) + '<span>' + (mixPlaying ? '停止试听' : '试听混合效果') + '</span>';
+    els.btnMix.classList.toggle('playing', mixPlaying);
+
+    var origPlaying = state.previewKind === 'original';
+    els.btnOriginal.innerHTML = (origPlaying ? ICONS.stop : ICONS.play) + '<span>' + (origPlaying ? '停止播放' : '试听原声') + '</span>';
+    els.btnOriginal.classList.toggle('playing', origPlaying);
+
+    els.btnGenerate.innerHTML = ICONS.download + '<span>生成并下载</span>';
+  }
+
+  function softLimit(x) {
+    if (x > 0.9) return 0.9 + 0.08 * Math.tanh((x - 0.9) / 0.08);
+    if (x < -0.9) return -0.9 + 0.08 * Math.tanh((x + 0.9) / 0.08);
+    return x;
+  }
+
+  /* ---------- 合成与导出 ---------- */
+
+  function peakOf(buffer) {
+    var peak = 0;
+    for (var c = 0; c < buffer.numberOfChannels; c++) {
+      var d = buffer.getChannelData(c);
+      for (var i = 0; i < d.length; i++) {
+        var v = Math.abs(d[i]);
+        if (v > peak) peak = v;
+      }
+    }
+    return peak;
+  }
+
+  function encodeWav(buffer) {
+    var numCh = buffer.numberOfChannels;
+    var len = buffer.length;
+    var sampleRate = buffer.sampleRate;
+    var blockAlign = numCh * 2;
+    var dataSize = len * blockAlign;
+    var ab = new ArrayBuffer(44 + dataSize);
+    var view = new DataView(ab);
+    function writeStr(offset, str) {
+      for (var i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    }
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numCh, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    var channels = [];
+    for (var c = 0; c < numCh; c++) channels.push(buffer.getChannelData(c));
+    var offset = 44;
+    for (var i = 0; i < len; i++) {
+      for (var k = 0; k < numCh; k++) {
+        var s = Math.max(-1, Math.min(1, channels[k][i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        offset += 2;
+      }
+    }
+    return new Blob([ab], { type: 'audio/wav' });
+  }
+
+  function renderSpeakerMix() {
+    var src = state.audioBuffer;
+    var len = src.length, sr = src.sampleRate, ch = src.numberOfChannels;
+    var out = new AudioBuffer({ length: len, sampleRate: sr, numberOfChannels: ch });
+    var depth = Math.pow(state.intensity / 100, 0.6);
+    var drift = state.speakerDrift || new Float32Array(len);
+
+    var s0 = src.getChannelData(0);
+    var act = new Uint8Array(len);
+    var ae = 0;
+    for (var t = 0; t < len; t++) {
+      ae += 0.0005 * (Math.abs(s0[t]) - ae);
+      act[t] = ae > 0.008 ? 1 : 0;
+    }
+    var surge = new Float32Array(len);
+    var nextSurge = Math.floor((10 + Math.random() * 10) * sr);
+    var sg = 0, phase = 0, pos = 0;
+    var rise = Math.floor(1.5 * sr), fall = Math.floor(0.5 * sr), holdT = 0;
+    for (var j = 0; j < len; j++) {
+      if (phase === 0 && j >= nextSurge) {
+        if (act[j]) {
+          phase = 1; pos = 0;
+          holdT = (0.5 + Math.random()) * sr;
+        } else {
+          nextSurge = j + Math.floor(0.5 * sr);
+        }
+      } else if (phase === 1) {
+        sg = Math.min(1, pos / rise);
+        if (++pos >= rise) { phase = 2; pos = 0; }
+      } else if (phase === 2) {
+        sg = 1;
+        if (!act[j] || ++pos >= holdT) { phase = 3; pos = 0; }
+      } else if (phase === 3) {
+        sg = Math.max(0, 1 - pos / fall);
+        if (++pos >= fall) {
+          phase = 0;
+          nextSurge = j + Math.floor((10 + Math.random() * 10) * sr);
+        }
+      }
+      surge[j] = sg;
+    }
+
+    var aLp = 1 - Math.exp(-2 * Math.PI * 1500 / sr);
+    for (var c = 0; c < ch; c++) {
+      var s = src.getChannelData(c);
+      var n = state.noiseBuffer.getChannelData(c);
+      var d = out.getChannelData(c);
+      var lp = 0, lpB = 0;
+      for (var i = 0; i < len; i++) {
+        lp += aLp * (s[i] - lp);
+        lpB += aLp * (lp - lpB);
+        var sgv = surge[i];
+        var duck = 1 - 0.75 * sgv;
+        var v = lpB * (1 + depth * drift[i] * n[i]) * duck + sgv * 0.9 * n[i];
+        d[i] = v > 0.9 ? softLimit(v) : v < -0.9 ? softLimit(v) : v;
+      }
+    }
+    return out;
+  }
+
+  async function renderMixBuffer() {
+    if (state.noiseType === 'speaker') return renderSpeakerMix();
+
+    var srcBuf = state.audioBuffer;
+    var off = new OfflineAudioContext(srcBuf.numberOfChannels, srcBuf.length, srcBuf.sampleRate);
+    var s = off.createBufferSource();
+    s.buffer = srcBuf;
+    var n = off.createBufferSource();
+    n.buffer = state.noiseBuffer;
+    var g = off.createGain();
+    g.gain.value = currentNoiseGain();
+    s.connect(off.destination);
+    n.connect(g);
+    g.connect(off.destination);
+    s.start();
+    n.start();
+    var rendered = await off.startRendering();
+
+    var peak = peakOf(rendered);
+    if (peak > 0.98) {
+      var f = 0.98 / peak;
+      for (var c = 0; c < rendered.numberOfChannels; c++) {
+        var d = rendered.getChannelData(c);
+        for (var i = 0; i < d.length; i++) d[i] *= f;
+      }
+    }
+    return rendered;
+  }
+
+  async function generate() {
+    if (!state.audioBuffer) return;
+    stopPreview();
+    els.btnGenerate.disabled = true;
+    showStatus('正在合成噪音音频…');
+
+    await new Promise(function (r) { setTimeout(r, 30); });
+
+    var rendered;
+    try {
+      rendered = await renderMixBuffer();
+    } catch (e) {
+      showStatus('合成失败：' + (e && e.message ? e.message : '未知错误'), 'error');
+      els.btnGenerate.disabled = false;
+      return;
+    }
+
+    var blob = encodeWav(rendered);
+    var url = URL.createObjectURL(blob);
+
+    resetResult();
+    state.resultUrl = url;
+    els.audioPlayer.src = url;
+    els.btnDownload.href = url;
+
+    var base = state.file.name.replace(/\.[^.]+$/, '') || 'audio';
+    var dlName, metaExtra;
+    if (state.noiseType === 'speaker') {
+      dlName = base + '_speaker_hiss' + state.intensity + '.wav';
+      metaExtra = NOISE_INFO.speaker.label + ' · 滋滋强度 ' + state.intensity + '%';
+    } else {
+      dlName = base + '_' + state.noiseType + '_snr' + state.snr + 'dB.wav';
+      metaExtra = NOISE_INFO[state.noiseType].label + ' · SNR ' + (state.snr > 0 ? '+' : '') + state.snr + ' dB';
+    }
+    els.btnDownload.download = dlName;
+
+    els.resultName.textContent = dlName;
+    els.resultMeta.textContent =
+      '时长 ' + formatDuration(rendered.duration) +
+      ' · ' + rendered.sampleRate + ' Hz · ' +
+      channelLabel(rendered.numberOfChannels) +
+      ' · ' + metaExtra;
+
+    els.result.classList.remove('hidden');
+    requestAnimationFrame(function () { drawWaveform(rendered); });
+    els.btnGenerate.disabled = false;
+    showStatus('合成完成，可在线试听或下载', 'ok');
+    els.result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  /* ---------- 波形绘制 ---------- */
+
+  function drawWaveform(buffer) {
+    var canvas = els.waveform;
+    var dpr = window.devicePixelRatio || 1;
+    var w = canvas.clientWidth;
+    var h = canvas.clientHeight;
+    if (!w || !h) return;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    var data = buffer.getChannelData(0);
+    var steps = Math.floor(w / 3);
+    var per = Math.max(1, Math.floor(data.length / steps));
+    var peaks = new Float32Array(steps);
+    for (var i = 0; i < steps; i++) {
+      var max = 0;
+      var start = i * per;
+      var end = Math.min(start + per, data.length);
+      for (var j = start; j < end; j++) {
+        var v = Math.abs(data[j]);
+        if (v > max) max = v;
+      }
+      peaks[i] = max;
+    }
+
+    ctx.strokeStyle = '#dde3f0';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, h / 2);
+    ctx.lineTo(w, h / 2);
+    ctx.stroke();
+
+    var grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, '#7b93ff');
+    grad.addColorStop(0.5, '#4f6ef7');
+    grad.addColorStop(1, '#7b93ff');
+    ctx.fillStyle = grad;
+
+    var barW = w / steps;
+    for (var k = 0; k < steps; k++) {
+      var amp = Math.min(1, peaks[k]) * (h / 2 - 6);
+      var x = k * barW;
+      ctx.fillRect(x, h / 2 - amp, Math.max(1, barW - 1), Math.max(1, amp * 2));
+    }
+  }
+
+  /* ---------- SNR / 滋滋强度 描述 ---------- */
+
+  function snrDesc(snr) {
+    if (snr >= 20) return '几乎无噪音';
+    if (snr >= 10) return '噪音很轻';
+    if (snr >= 0) return '噪音适中';
+    if (snr >= -10) return '噪音明显';
+    return '噪音很大';
+  }
+
+  function intensityDesc(v) {
+    if (v <= 10) return '几乎听不到滋滋';
+    if (v <= 30) return '滋滋较轻';
+    if (v <= 60) return '滋滋明显';
+    return '滋滋很重';
+  }
+
+  function configureSlider() {
+    if (state.noiseType === 'speaker') {
+      els.sliderLabel.textContent = '滋滋强度（噼啪杂音混入原声的深度）';
+      els.snr.min = '0'; els.snr.max = '100'; els.snr.step = '1';
+      els.snr.value = String(state.intensity);
+      els.snrValue.textContent = state.intensity + '%';
+      els.snrDesc.textContent = intensityDesc(state.intensity);
+      els.sliderHintSuffix.textContent = ' · 杂音与原声融为一体：原声越响，噼里啪啦越明显，安静处自然无声';
+    } else {
+      els.sliderLabel.textContent = '信噪比 SNR（数值越大，原声越清晰）';
+      els.snr.min = '-20'; els.snr.max = '20'; els.snr.step = '1';
+      els.snr.value = String(state.snr);
+      els.snrValue.textContent = (state.snr > 0 ? '+' : '') + state.snr + ' dB';
+      els.snrDesc.textContent = snrDesc(state.snr);
+      els.sliderHintSuffix.textContent = ' · 负数表示噪音盖过原声，可用于高强度抗干扰训练';
+    }
+  }
+
+  /* ---------- 事件绑定 ---------- */
+
+  els.dropzone.addEventListener('click', function () { els.fileInput.click(); });
+  els.dropzone.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    els.dropzone.classList.add('dragover');
+  });
+  els.dropzone.addEventListener('dragleave', function () {
+    els.dropzone.classList.remove('dragover');
+  });
+  els.dropzone.addEventListener('drop', function (e) {
+    e.preventDefault();
+    els.dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files && e.dataTransfer.files.length) {
+      loadFile(e.dataTransfer.files[0]);
+    }
+  });
+  els.fileInput.addEventListener('change', function () {
+    if (els.fileInput.files && els.fileInput.files.length) {
+      loadFile(els.fileInput.files[0]);
+    }
+    els.fileInput.value = '';
+  });
+  els.btnChangeFile.addEventListener('click', function () { els.fileInput.click(); });
+  els.btnRecord.addEventListener('click', function () {
+    if (state.recorder) stopRecord();
+    else startRecord();
+  });
+
+  els.noiseTypes.querySelectorAll('button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (btn.dataset.type === state.noiseType && state.audioBuffer) return;
+      els.noiseTypes.querySelectorAll('button').forEach(function (b) {
+        b.classList.toggle('active', b === btn);
+      });
+      state.noiseType = btn.dataset.type;
+      els.noiseHint.textContent = NOISE_INFO[state.noiseType].desc;
+      configureSlider();
+      if (state.audioBuffer) {
+        stopPreview();
+        showStatus('正在生成' + NOISE_INFO[state.noiseType].label + '…');
+        state.noiseBuffer = buildNoiseBuffer();
+        showStatus('已切换为' + NOISE_INFO[state.noiseType].label + '，可重新试听或生成', 'ok');
+      }
+    });
+  });
+
+  els.snr.addEventListener('input', function () {
+    if (state.noiseType === 'speaker') {
+      state.intensity = parseInt(els.snr.value, 10);
+      els.snrValue.textContent = state.intensity + '%';
+      els.snrDesc.textContent = intensityDesc(state.intensity);
+    } else {
+      state.snr = parseInt(els.snr.value, 10);
+      els.snrValue.textContent = (state.snr > 0 ? '+' : '') + state.snr + ' dB';
+      els.snrDesc.textContent = snrDesc(state.snr);
+    }
+  });
+
+  els.btnMix.addEventListener('click', function () { playPreview('mix'); });
+  els.btnOriginal.addEventListener('click', function () { playPreview('original'); });
+  els.btnGenerate.addEventListener('click', generate);
+
+  els.audioPlayer.addEventListener('play', function () {
+    if (state.autoPlay) { state.autoPlay = false; return; }
+    if (state.previewKind) { state.previewKind = null; updateButtons(); }
+  });
+  els.audioPlayer.addEventListener('ended', function () {
+    if (state.previewKind) {
+      state.previewKind = null;
+      updateButtons();
+      showStatus('试听结束');
+    }
+  });
+  els.audioPlayer.addEventListener('pause', function () {
+    if (state.previewKind) { state.previewKind = null; updateButtons(); }
+  });
+
+  els.noiseHint.textContent = NOISE_INFO.speaker.desc;
+  configureSlider();
+  updateButtons();
+  els.btnRecord.innerHTML = ICONS.mic + '<span>开始录音</span>';
+})();
+</script>
+<script charset="UTF-8" id="LA_COLLECT" src="https://sdk.51.la/js-sdk-pro.min.js"></script>
+<script>LA.init({id:"3RisH9y6dKrj6wRn",ck:"3RisH9y6dKrj6wRn"})</script>
+</body>
+</html>
