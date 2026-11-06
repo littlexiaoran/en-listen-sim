@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>英语听力噪音模拟器 · en-listen-sim</title>
+<title>英语听力模拟器 · en-listen-sim</title>
 <style>
   :root {
     --bg: #eef1f8;
@@ -175,7 +175,7 @@
 <body>
 <div class="app">
   <header>
-    <h1>英语听力<span class="accent">噪音模拟器</span></h1>
+    <h1>英语听力<span class="accent">模拟器</span></h1>
   </header>
 
   <section class="card">
@@ -221,7 +221,6 @@
         <button type="button" data-type="brown">布朗噪声</button>
         <button type="button" data-type="babble">嘈杂人声</button>
       </div>
-      <p class="hint" id="noiseHint"></p>
     </div>
 
     <div class="field">
@@ -273,7 +272,6 @@
     recordHint: $('recordHint'),
     controls: $('controls'),
     noiseTypes: $('noiseTypes'),
-    noiseHint: $('noiseHint'),
     sliderLabel: $('sliderLabel'),
     snr: $('snr'),
     snrValue: $('snrValue'),
@@ -292,11 +290,11 @@
   };
 
   var NOISE_INFO = {
-    speaker: { label: '喇叭滋滋声', desc: 'v8：原声经 1500Hz 双重低通变得浑浊；噼啪杂音乘性混入且强度每 0.5 秒随机起伏；每隔 10–20 秒（仅当原声正在播放时）噪音用约 1.5 秒渐渐增响、保持 0.5–1.5 秒后 0.5 秒内消退，期间原声被完全盖住，模拟严重损坏的喇叭。' },
-    white:  { label: '白噪声',   desc: '频谱均匀的"嘶嘶"声，类似收音机底噪或电视雪花声。' },
-    pink:   { label: '粉红噪声', desc: '比白噪声柔和，类似风扇、空调或淅沥雨声，最接近真实环境底噪。' },
-    brown:  { label: '布朗噪声', desc: '低沉的轰鸣声，类似远处车流、地铁或海浪声。' },
-    babble: { label: '嘈杂人声', desc: '模拟考场外的嘈杂说话声——能听到"嗡嗡"的人声但听不清内容，训练抗干扰能力。' }
+    speaker: { label: '喇叭滋滋声' },
+    white:  { label: '白噪声' },
+    pink:   { label: '粉红噪声' },
+    brown:  { label: '布朗噪声' },
+    babble: { label: '嘈杂人声' }
   };
 
   var state = {
@@ -305,7 +303,6 @@
     audioBuffer: null,
     noiseBuffer: null,
     noiseType: 'speaker',
-    snr: 5,
     intensity: 40, speakerDrift: null,
     signalRms: 0,
     ctx: null,
@@ -503,7 +500,8 @@
 
   function currentNoiseGain() {
     if (!state.audioBuffer || !state.noiseBuffer) return 0;
-    return state.signalRms * Math.pow(10, -state.snr / 20);
+    var snr = 20 - 0.4 * state.intensity;
+    return state.signalRms * Math.pow(10, -snr / 20);
   }
 
   /* ---------- 文件加载 ---------- */
@@ -655,7 +653,7 @@
       url = state.fileUrl;
       if (!url) return;
     } else {
-      var key = state.noiseType + ':' + (state.noiseType === 'speaker' ? state.intensity : state.snr);
+      var key = state.noiseType + ':' + state.intensity;
       if (!state.mixCache || state.mixCache.key !== key) {
         showStatus('正在合成试听音频…');
         await new Promise(function (r) { setTimeout(r, 30); });
@@ -880,8 +878,8 @@
       dlName = base + '_speaker_hiss' + state.intensity + '.wav';
       metaExtra = NOISE_INFO.speaker.label + ' · 滋滋强度 ' + state.intensity + '%';
     } else {
-      dlName = base + '_' + state.noiseType + '_snr' + state.snr + 'dB.wav';
-      metaExtra = NOISE_INFO[state.noiseType].label + ' · SNR ' + (state.snr > 0 ? '+' : '') + state.snr + ' dB';
+      dlName = base + '_' + state.noiseType + '_intensity' + state.intensity + '.wav';
+      metaExtra = NOISE_INFO[state.noiseType].label + ' · 噪音强度 ' + state.intensity + '%';
     }
     els.btnDownload.download = dlName;
 
@@ -975,12 +973,12 @@
       els.snrDesc.textContent = intensityDesc(state.intensity);
       els.sliderHintSuffix.textContent = ' · 杂音与原声融为一体：原声越响，噼里啪啦越明显，安静处自然无声';
     } else {
-      els.sliderLabel.textContent = '信噪比 SNR（数值越大，原声越清晰）';
-      els.snr.min = '-20'; els.snr.max = '20'; els.snr.step = '1';
-      els.snr.value = String(state.snr);
-      els.snrValue.textContent = (state.snr > 0 ? '+' : '') + state.snr + ' dB';
-      els.snrDesc.textContent = snrDesc(state.snr);
-      els.sliderHintSuffix.textContent = ' · 负数表示噪音盖过原声，可用于高强度抗干扰训练';
+      els.sliderLabel.textContent = '噪音强度（数值越大，噪音越响）';
+      els.snr.min = '0'; els.snr.max = '100'; els.snr.step = '1';
+      els.snr.value = String(state.intensity);
+      els.snrValue.textContent = state.intensity + '%';
+      els.snrDesc.textContent = snrDesc(20 - 0.4 * state.intensity);
+      els.sliderHintSuffix.textContent = ' · 拉满时噪音完全盖过原声，可用于高强度抗干扰训练';
     }
   }
 
@@ -1020,7 +1018,6 @@
         b.classList.toggle('active', b === btn);
       });
       state.noiseType = btn.dataset.type;
-      els.noiseHint.textContent = NOISE_INFO[state.noiseType].desc;
       configureSlider();
       if (state.audioBuffer) {
         stopPreview();
@@ -1037,9 +1034,9 @@
       els.snrValue.textContent = state.intensity + '%';
       els.snrDesc.textContent = intensityDesc(state.intensity);
     } else {
-      state.snr = parseInt(els.snr.value, 10);
-      els.snrValue.textContent = (state.snr > 0 ? '+' : '') + state.snr + ' dB';
-      els.snrDesc.textContent = snrDesc(state.snr);
+      state.intensity = parseInt(els.snr.value, 10);
+      els.snrValue.textContent = state.intensity + '%';
+      els.snrDesc.textContent = snrDesc(20 - 0.4 * state.intensity);
     }
   });
 
@@ -1062,7 +1059,6 @@
     if (state.previewKind) { state.previewKind = null; updateButtons(); }
   });
 
-  els.noiseHint.textContent = NOISE_INFO.speaker.desc;
   configureSlider();
   updateButtons();
   els.btnRecord.innerHTML = ICONS.mic + '<span>开始录音</span>';
